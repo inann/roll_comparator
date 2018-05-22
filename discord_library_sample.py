@@ -3,10 +3,17 @@ import asyncio
 
 client = discord.Client()
 
+first_roll = 0
+second_roll = 0
+first_user = ''
+
 def check_for_rollers(reaction, user):
     reaction_string = str(reaction.emoji)
     if reaction_string.startswith('✋'):
         return user
+
+def verify_digits(message):
+    return message.content.isdigit()
 
 @client.event
 async def on_ready():
@@ -30,9 +37,28 @@ async def on_message(message):
         await client.send_message(message.channel, 'Done sleeping')
     elif message.content.startswith('!rolloff'):
         message = await client.send_message(message.channel, 'Who\'s rolling?')
-        res = await client.wait_for_reaction(
-            message=message, check=check_for_rollers)
-        print('LENGTH: ' + str(len(res)))
-        await client.send_message(message.channel, 'User {0.user} is rolling!'.format(res))
+
+@client.event
+async def on_reaction_add(reaction, user):
+    reaction_string = str(reaction.emoji)
+    if reaction_string.startswith('✋'):
+        if reaction.message.content.startswith('Who\'s rolling?'):
+            if len(reaction.message.reactions) < 2:
+                await client.send_message(user, 'What did you roll?')
+                roll_result = await client.wait_for_message(author = user, check = verify_digits)
+                first_roll = int(roll_result.content)
+                first_user = user.name
+            elif len(reaction.message.reactions) == 2:
+                await client.send_message(user, 'What did you roll?')
+                roll_result = await client.wait_for_message(author = user, check = verify_digits)
+                second_roll = int(roll_result.message)
+                if first_roll < second_roll:
+                    await client.send_message(reaction.message.channel, '{} wins!'.format(user.name))
+                else:
+                    await client.send_message(reaction.message.channel, '{} wins!'.format(first_user))
+            else:
+                await client.send_message(reaction.message.channel, 'Only two at a time')
+            # await client.send_message(reaction.message.channel, '{} rolled {}!'.format(user.name, roll_result.content))
+
 
 client.run('')
